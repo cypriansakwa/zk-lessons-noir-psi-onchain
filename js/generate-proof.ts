@@ -1,6 +1,6 @@
 import { UltraHonkBackend } from "@aztec/bb.js";
 import fs from "fs";
-import circuit from "../circuits/target/zkp_linear_check.json";
+import circuit from "../circuits/target/noir_zkp_bounds_check.json";
 // @ts-ignore
 import { Noir } from "@noir-lang/noir_js";
 
@@ -9,7 +9,13 @@ import { Noir } from "@noir-lang/noir_js";
     const noir = new Noir(circuit as any);
     const honk = new UltraHonkBackend(circuit.bytecode, { threads: 1 });
 
-    const inputs = { x: 2, y: 2, claimed_value: 8 };
+    // Change these to match your circuit!
+    const inputs = {
+      x: 17,
+      min: 15,
+      max: 30
+    };
+
     const { witness } = await noir.execute(inputs);
     const { proof, publicInputs } = await honk.generateProof(witness, {
       keccak: true,

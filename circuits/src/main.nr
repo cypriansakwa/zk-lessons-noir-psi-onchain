@@ -1,29 +1,29 @@
-//
-fn main(x: Field, y: pub Field, claimed_value: pub Field) {
-    let res = x * 3 + y;
-    assert(res == claimed_value);
+/// Checks whether a private input `x` lies within a public range `[min, max]`.
+/// Fails if `x` is less than `min` or greater than `max`.
+fn main(x: u32, min: pub u32, max: pub u32) {
+    assert(x >= min, "x is below the minimum bound");
+    assert(x <= max, "x is above the maximum bound");
+}
+#[test]
+fn test_range_check_pass() {
+    let x = 15;
+    let min = 10;
+    let max = 20;
+    main(x, min, max);
 }
 
-#[test]
-fn test_correct_values_case1() {let x = 2;
-    let y = 2;
-    let claimed_value = 8;
-    let res = x * 3 + y;
-    assert(res == claimed_value);}
+#[test(should_fail)]
+fn test_range_check_fail_below() {
+    let x = 5;
+    let min = 10;
+    let max = 20;
+    main(x, min, max);
+}
 
-    #[test]
-fn test_correct_values_case2() {
-    let x = 2;
-    let y = 5;
-    let claimed_value = 11;
-    let res = x * 3 + y;
-    assert(res == claimed_value); }
-
-#[test]
-fn test_incorrect_expected() {
-  let x = 5;
-  let y = 15;
-  let claimed_value = 24;
-  let res = x * 3 + y;
-  assert(res == claimed_value); // This should fail if uncommented
-} 
+#[test(should_fail)]
+fn test_range_check_fail_above() {
+    let x = 25;
+    let min = 10;
+    let max = 20;
+    main(x, min, max);
+}

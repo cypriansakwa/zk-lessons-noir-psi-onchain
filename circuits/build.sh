@@ -8,7 +8,7 @@ if ! nargo compile; then
 
 fi 
   echo "Generating verification key (vkey)..."
-if ! bb write_vk --oracle_hash keccak -b ./target/zkp_linear_check.json -o ./target; then
+if ! bb write_vk --oracle_hash keccak -b ./target/noir_zkp_bounds_check.json -o ./target; then
     echo "❌ Failed to generate verification key. Exiting..."
     exit 1
 fi 

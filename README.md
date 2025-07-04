@@ -1,19 +1,31 @@
-# zkp linear check
+# noir-zkp-bounds-check
 
-## Overview
+## 🛡️ Overview
 
-This repository demonstrates how to write, prove, and verify a simple Noir zero-knowledge circuit using the `bb` backend and a Solidity verifier.  
-It checks a basic arithmetic relation and showcases how to integrate Noir-generated proofs with Ethereum smart contracts.
+This repository demonstrates how to write, prove, and verify a simple **zero-knowledge bounds-checking circuit** in Noir.  
+The circuit checks whether a **private input** `x` lies within a **public range** `[min, max]`.
+
+It uses:
+- `bb` backend for proof generation
+- A Solidity verifier for on-chain verification
+- JavaScript and CLI workflows for automation
 
 ---
 
-## ✨ Introduction
+## 🧠 Circuit Logic
 
-An example repo to verify Noir circuits using:
-- **Noir (v1.0.0-beta.6)** — to define and compile the circuit.
-- **bb (v0.84.0)** — as the backend to generate the proof.
-- **Solidity** — for on-chain verification of the proof.
-- **JavaScript** — to orchestrate proof generation and export.
+The Noir circuit enforces the condition:
+
+```noir
+assert(x >= min, "x is below the minimum bound");
+assert(x <= max, "x is above the maximum bound");
+```
+Where:
+
+- `x` is a **private** input
+- `min` and `max` are **public** inputs
+
+This ensures that `x` is **within the inclusive range** `[min, max]`.
 
 ### Folder Structure:
 - `/circuits` – Contains the Noir circuits.
@@ -26,22 +38,6 @@ An example repo to verify Noir circuits using:
 
 ---
 
-## 🧠 Circuit Logic
-
-The Noir circuit enforces the relation:
-
-\[
-x \cdot 3 + y = \texttt{claimed\_value}
-\]
-
-Where:
-- `x`: a **private** input (kept hidden in the proof).
-- `y`: a **public** input.
-- `claimed_value`: a **public** value to be validated against the computation.
-
-This is a minimal example to illustrate how to prove knowledge of a private input involved in a linear arithmetic constraint and verify it on-chain.
-
----
 
 ## ✅ Tested With
 - **Noir**: `v1.0.0-beta.6`
@@ -68,7 +64,6 @@ git submodule update --init --recursive
 
 # Run Foundry test to read the generated proof and verify it
 (cd contract && forge test --optimize --optimizer-runs 5000 --gas-report -vvv)
-
 ```
 ## 🔧 Proof Generation (CLI Workflow)
 
@@ -79,7 +74,7 @@ cd circuits
 nargo execute
 
 # Generate proof with bb CLI
-bb prove -b ./target/zkp_linear_check.json -w ./target/zkp_linear_check.gz -o ./target --oracle_hash keccak
+bb prove -b ./target/noir_zkp_bounds_check.json -w ./target/noir_zkp_bounds_check.gz -o ./target --oracle_hash keccak
 
 # Run Foundry test to verify proof
 cd ..
