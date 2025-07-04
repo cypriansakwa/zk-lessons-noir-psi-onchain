@@ -1,61 +1,51 @@
-# noir zkp parametric quadratic
+# ZK Aggregated Credential Score
 
-This project demonstrates a foundational concept in Zero-Knowledge Proofs (ZKPs): **proving knowledge of a private input that satisfies a known public relationship — without revealing the input**.
+This project demonstrates a foundational Zero-Knowledge Proof (ZKP) use case:  
+**Proving knowledge of private credentials that satisfy a public weighted scoring formula — without revealing the credentials themselves.**
+
+---
 
 ## 🧠 Concept
 
-We define a public output `y` and prove that we know a secret value `x` such that:
+We compute a **recovery score** based on 3 private weights and a public modifier:
 
-$$ y = a x^2 + b x + c $$
+```math
+recovery\_score = 2 \cdot w_1 + 3 \cdot w_2 + 5 \cdot w_3 + \texttt{public\_modifier}
 
-where `a`, `b`, and `c` are public parameters and `x` is the private witness.
 
-This is useful in scenarios like:
-
-- Proving compliance with a hidden policy
-- Demonstrating possession of preimages in cryptographic commitments
-- Verifying constraint satisfaction without revealing the underlying data
-
-## 📦 Circuit Details
-
-The Noir circuit ensures that:
-- The prover **knows** an `x`
-- Such that the public `y` satisfies the quadratic expression with public coefficients `a`, `b`, and `c`
-
-```noir
-/// Proves knowledge of `x` such that:
-/// public_y = a * x^2 + b * x + c
-fn main(x: Field, a: pub Field, b: pub Field, c: pub Field, public_y: pub Field) {
-    let y = a * x * x + b * x + c;
-    assert(y == public_y);
+/// Proves knowledge of private w1, w2, w3 such that:
+/// required_score = 2*w1 + 3*w2 + 5*w3 + public_modifier
+fn main(w1: Field, w2: Field, w3: Field, public_modifier: pub Field, required_score: pub Field) {
+    let recovery_score = w1 * 2 + w2 * 3 + w3 * 5 + public_modifier;
+    assert(recovery_score == required_score);
 }
 
-// Success test: x = 2, a = 3, b = 3, c = 5, public_y = 23 (3*2^2 + 3*2 + 5 = 12 + 6 + 5 = 23)
+// Passing test
 #[test]
-fn test_quadratic_relation_success() {
-    let x = 2;
-    let a = 3;
-    let b = 3;
-    let c = 5;
-    let public_y = 23;
-    main(x, a, b, c, public_y);
+fn test_score_pass() {
+    let w1 = 1;
+    let w2 = 2;
+    let w3 = 3;
+    let public_modifier = 4;
+    let required_score = 27;
+    main(w1, w2, w3, public_modifier, required_score);
 }
 
-// Failure test: x = 3, a = 2, b = 3, c = 5, public_y = 16 (should fail, since 2*3^2 + 3*3 + 5 = 18 + 9 + 5 = 32)
+// Failing test
 #[test(should_fail)]
-fn test_quadratic_relation_failure() {
-    let x = 3;
-    let a = 2;
-    let b = 3;
-    let c = 5;
-    let public_y = 16;
-    main(x, a, b, c, public_y);
+fn test_score_fail() {
+    let w1 = 1;
+    let w2 = 1;
+    let w3 = 1;
+    let public_modifier = 1;
+    let required_score = 10; // wrong on purpose
+    main(w1, w2, w3, public_modifier, required_score);
 }
-```
+
 
 ## ✅ Example Use Case
 
-A user may want to prove they know a value that satisfies a certain equation — e.g., access level or credential — **without revealing the value itself**.
+A user can prove they have private credentials (e.g. access scores, trust levels, or eligibility factors) that meet a public threshold — without disclosing the underlying values.
 
 ---
 
@@ -99,7 +89,7 @@ git submodule update
 nargo execute
 
 # Generate proof with keccak hash
-bb prove -b ./target/noir_zkp_parametric_quadratic.json -w target/noir_zkp_parametric_quadratic.gz -o ./target --oracle_hash keccak
+bb prove -b ./target/ZK_Aggregated_Credential_Score.json -w target/ZK_Aggregated_Credential_Score.gz -o ./target --oracle_hash keccak
 
 # Run Foundry test to verify proof
 cd ..

@@ -1,5 +1,5 @@
 [package]
-name = "noir_zkp_parametric_quadratic"       
+name = "ZK_Aggregated_Credential_Score"       
 type = "bin"
 authors = ["cypriansakwa"]
 compiler_version = ">=1.0.0"

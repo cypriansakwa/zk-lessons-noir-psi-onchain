@@ -1,6 +1,6 @@
 import { UltraHonkBackend } from "@aztec/bb.js";
 import fs from "fs";
-import circuit from "../circuits/target/noir_zkp_parametric_quadratic.json";
+import circuit from "../circuits/target/ZK_Aggregated_Credential_Score.json";
 // @ts-ignore
 import { Noir } from "@noir-lang/noir_js";
 
@@ -11,13 +11,13 @@ import { Noir } from "@noir-lang/noir_js";
 
     // Change these to match your circuit!
     const inputs = {
-      x: 2,
-      a: 3,
-      b: 3,
-      c: 5,
-      public_y : 23
+      w1: 1,
+      w2: 2,
+      w3: 3,
+      public_modifier: 4,
+      required_score: 27,
     };
-
+   
     const { witness } = await noir.execute(inputs);
     const { proof, publicInputs } = await honk.generateProof(witness, {
       keccak: true,
