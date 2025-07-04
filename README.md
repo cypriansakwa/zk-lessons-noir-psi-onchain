@@ -1,110 +1,107 @@
-# noir-zkp-bounds-check
+# noir zkp parametric quadratic
 
-## 🛡️ Overview
+This project demonstrates a foundational concept in Zero-Knowledge Proofs (ZKPs): **proving knowledge of a private input that satisfies a known public relationship — without revealing the input**.
 
-This repository demonstrates how to write, prove, and verify a simple **zero-knowledge bounds-checking circuit** in Noir.  
-The circuit checks whether a **private input** `x` lies within a **public range** `[min, max]`.
+## 🧠 Concept
 
-It uses:
-- `bb` backend for proof generation
-- A Solidity verifier for on-chain verification
-- JavaScript and CLI workflows for automation
+We define a public output `y` and prove that we know a secret value `x` such that:
 
----
+$$ y = a x^2 + b x + c $$
 
-## 🧠 Circuit Logic
+where `a`, `b`, and `c` are public parameters and `x` is the private witness.
 
-The Noir circuit enforces the condition:
+This is useful in scenarios like:
+
+- Proving compliance with a hidden policy
+- Demonstrating possession of preimages in cryptographic commitments
+- Verifying constraint satisfaction without revealing the underlying data
+
+## 📦 Circuit Details
+
+The Noir circuit ensures that:
+- The prover **knows** an `x`
+- Such that the public `y` satisfies the quadratic expression with public coefficients `a`, `b`, and `c`
 
 ```noir
-assert(x >= min, "x is below the minimum bound");
-assert(x <= max, "x is above the maximum bound");
+/// Proves knowledge of `x` such that:
+/// public_y = a * x^2 + b * x + c
+fn main(x: Field, a: pub Field, b: pub Field, c: pub Field, public_y: pub Field) {
+    let y = a * x * x + b * x + c;
+    assert(y == public_y);
+}
+
+// Success test: x = 2, a = 3, b = 3, c = 5, public_y = 23 (3*2^2 + 3*2 + 5 = 12 + 6 + 5 = 23)
+#[test]
+fn test_quadratic_relation_success() {
+    let x = 2;
+    let a = 3;
+    let b = 3;
+    let c = 5;
+    let public_y = 23;
+    main(x, a, b, c, public_y);
+}
+
+// Failure test: x = 3, a = 2, b = 3, c = 5, public_y = 16 (should fail, since 2*3^2 + 3*3 + 5 = 18 + 9 + 5 = 32)
+#[test(should_fail)]
+fn test_quadratic_relation_failure() {
+    let x = 3;
+    let a = 2;
+    let b = 3;
+    let c = 5;
+    let public_y = 16;
+    main(x, a, b, c, public_y);
+}
 ```
-Where:
 
-- `x` is a **private** input
-- `min` and `max` are **public** inputs
+## ✅ Example Use Case
 
-This ensures that `x` is **within the inclusive range** `[min, max]`.
-
-### Folder Structure:
-- `/circuits` – Contains the Noir circuits.
-- `/contract` – A Foundry project with:
-  - A Solidity verifier contract.
-  - A test contract that reads the proof file and verifies it.
-- `/js` – JavaScript scripts to:
-  - Generate proofs.
-  - Save them as JSON files compatible with Solidity.
+A user may want to prove they know a value that satisfies a certain equation — e.g., access level or credential — **without revealing the value itself**.
 
 ---
 
+## Project Structure
 
-## ✅ Tested With
-- **Noir**: `v1.0.0-beta.6`
-- **bb**: `v0.84.0`
+This repo lets you verify Noir circuits (with the bb backend) using a Solidity verifier.
 
-## 🛠 Installation & Setup
+- `/circuits` — Contains the Noir circuit and build scripts.
+- `/contract` — Foundry project with the Solidity verifier and integration test contract.
+- `/js` — JS code to generate proof and save as a file.
+
+Tested with Noir >= 1.0.0-beta.6 and bb >= 0.84.0.
+
+### Installation / Setup
 
 ```bash
-# Clone the repo and pull submodules (e.g., for bb-solidity)
-git submodule update --init --recursive
+# Foundry
+git submodule update
 
-# Build circuits and generate the Solidity verifier
+# Build circuits, generate verifier contract
 (cd circuits && ./build.sh)
 
-# Install JavaScript dependencies
+# Install JS dependencies
 (cd js && yarn)
-``` 
+```
 
-## 🧪 Proof Generation (JavaScript Workflow)
+### Proof Generation in JS
 
 ```bash
-# Use bb.js to generate proof and save it to a file
+# Use bb.js to generate proof and save to a file
 (cd js && yarn generate-proof)
 
-# Run Foundry test to read the generated proof and verify it
+# Run Foundry test to verify the generated proof
 (cd contract && forge test --optimize --optimizer-runs 5000 --gas-report -vvv)
 ```
-## 🔧 Proof Generation (CLI Workflow)
+
+### Proof Generation with bb CLI
 
 ```bash
-cd circuits
-
-# Generate witness using nargo
+# Generate witness
 nargo execute
 
-# Generate proof with bb CLI
-bb prove -b ./target/noir_zkp_bounds_check.json -w ./target/noir_zkp_bounds_check.gz -o ./target --oracle_hash keccak
+# Generate proof with keccak hash
+bb prove -b ./target/noir_zkp_parametric_quadratic.json -w target/noir_zkp_parametric_quadratic.gz -o ./target --oracle_hash keccak
 
 # Run Foundry test to verify proof
 cd ..
 (cd contract && forge test --optimize --optimizer-runs 5000 --gas-report -vvv)
 ```
-
-## 🔁 Dual Workflow Support: CLI & JavaScript
-
-This project supports two parallel workflows for generating and verifying proofs:
-
-- ✅ **JavaScript-based workflow** using `bb.js` and automated proof orchestration
-- 🔧 **Command-line workflow** using `nargo` and `bb` directly
-
-Choose the one that fits your stack or integration best.
-
----
-
-## 🏗️ Building the Solidity Verifier
-
-Run the `build.sh` script from the project root:
-
-```bash
-./build.sh
-```
-This will:
-- Compile the Noir circuit using `nargo`
-- Generate the verification key (`vk`)
-- Export the Solidity verifier as `contract/Verifier.sol`
-
-
-
-
-

@@ -1,29 +1,26 @@
-/// Checks whether a private input `x` lies within a public range `[min, max]`.
-/// Fails if `x` is less than `min` or greater than `max`.
-fn main(x: u32, min: pub u32, max: pub u32) {
-    assert(x >= min, "x is below the minimum bound");
-    assert(x <= max, "x is above the maximum bound");
+// Proves knowledge of `x` such that:
+/// public_y = a * x^2 + b * x + c
+fn main(x: Field, a: pub Field, b: pub Field, c: pub Field, public_y: pub Field) {
+    let y = a * x * x + b * x + c;
+    assert(y == public_y);
 }
+
 #[test]
-fn test_range_check_pass() {
-    let x = 15;
-    let min = 10;
-    let max = 20;
-    main(x, min, max);
+fn test_quadratic_relation_success() {
+    let x = 2;
+    let a = 3;
+    let b = 3;
+    let c = 5;
+    let public_y = 23; // 3*2^2 + 3*2 + 5 = 12 + 6 + 5
+    main(x, a, b, c, public_y);
 }
 
 #[test(should_fail)]
-fn test_range_check_fail_below() {
-    let x = 5;
-    let min = 10;
-    let max = 20;
-    main(x, min, max);
-}
-
-#[test(should_fail)]
-fn test_range_check_fail_above() {
-    let x = 25;
-    let min = 10;
-    let max = 20;
-    main(x, min, max);
+fn test_quadratic_relation_failure() {
+    let x = 3;
+    let a = 2;
+    let b = 3;
+    let c = 5;
+    let public_y = 16; // Should be 9 + 9 + 5 = 23
+    main(x, a, b, c, public_y);
 }

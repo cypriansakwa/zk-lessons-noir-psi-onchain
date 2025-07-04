@@ -9,15 +9,18 @@ import "../Verifier.sol";
 contract CyprianVerifierAppTest is Test {
     CyprianVerifierApp public verifierApp; // 🔁 updated type
     HonkVerifier public verifier;
-    bytes32[] public publicInputs = new bytes32[](2);
+    bytes32[] public publicInputs = new bytes32[](4);
 
     function setUp() public {
         verifier = new HonkVerifier();
         verifierApp = new CyprianVerifierApp(verifier); // 🔁 updated constructor
 
-        publicInputs[0] = bytes32(0x000000000000000000000000000000000000000000000000000000000000000f);
-        publicInputs[1] = bytes32(0x000000000000000000000000000000000000000000000000000000000000001e);
+         publicInputs[0] = bytes32(uint256(3));  // a
+        publicInputs[1] = bytes32(uint256(3));  // b
+        publicInputs[2] = bytes32(uint256(5));  // c
+        publicInputs[3] = bytes32(uint256(23)); // public_y (3*2^2 + 3*2 + 5 = 23)
     }
+
 
     function testVerifyProof() public {
         bytes memory proof = vm.readFileBinary(

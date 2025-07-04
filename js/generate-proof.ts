@@ -1,6 +1,6 @@
 import { UltraHonkBackend } from "@aztec/bb.js";
 import fs from "fs";
-import circuit from "../circuits/target/noir_zkp_bounds_check.json";
+import circuit from "../circuits/target/noir_zkp_parametric_quadratic.json";
 // @ts-ignore
 import { Noir } from "@noir-lang/noir_js";
 
@@ -11,9 +11,11 @@ import { Noir } from "@noir-lang/noir_js";
 
     // Change these to match your circuit!
     const inputs = {
-      x: 17,
-      min: 15,
-      max: 30
+      x: 2,
+      a: 3,
+      b: 3,
+      c: 5,
+      public_y : 23
     };
 
     const { witness } = await noir.execute(inputs);
