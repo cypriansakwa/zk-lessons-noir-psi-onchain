@@ -1,50 +1,49 @@
-// Simple linear classifier circuit for Noir
+fn mod_exp(base: u32, exponent: u32, modulus: u32) -> u32 {
+    let mut result: u32 = 1;
+    let mut base_power: u32 = base % modulus;
+    let mut exp: u32 = exponent;
 
-fn main(
-    features: [Field; 4],
-    weights: [Field; 4],
-    bias: Field,
-    approval: pub Field
-) {
-    let mut score = bias;
-    for i in 0..4 {
-        score += features[i] * weights[i];
+    for _ in 0..32 {  // 32-bit exponent max
+        if exp & 1 == 1 {
+            result = (result * base_power) % modulus;
+        }
+        base_power = (base_power * base_power) % modulus;
+        exp = exp >> 1;
     }
 
-    // Witness: the prover supplies decision bit (0 or 1)
-    // Constraints: decision bit must be 0 or 1, and must match approval
-    // To threshold, the prover must produce correct decision
-    // (score > 0 => decision == 1, score <= 0 => decision == 0)
-    let decision = approval; // for simplicity, approval is the decision bit
+    result
+}
 
-    // Enforce decision is boolean
-    assert(decision * (1 - decision) == 0);
+fn main(x: u32, e: u32, y: pub Field) {
+    let modulus: u32 = 17;
+    let result: u32 = mod_exp(x, e, modulus);
 
-    // For demo: only works if score is in {0,1}
-    // For real thresholding, must use custom range check gadget
-    // Or, you can use a lookup table for small ranges
+    // Convert u32 result to Field for assertion
+    let result_field: Field = result.into();
 
-    // Optionally: check that (decision == 1 means score > 0), (decision == 0 means score <= 0)
-    // For circuits, this typically means you must provide the 'decision' as a witness, and optionally, 'score' as a public output.
+    assert(result_field == y);
 }
 
 #[test]
-fn approves_when_score_positive() {
-    // features = [2, 1, 1, 1], weights = [1, 2, 3, 4], bias = -3
-    // score = 2*1 + 1*2 + 1*3 + 1*4 - 3 = 2 + 2 + 3 + 4 - 3 = 8
-    // score > 0, so approval should be 1
-    main([2, 1, 1, 1], [1, 2, 3, 4], -3, 1);
-}
+    fn test_pass_case_one() {
+        let base: u32 = 5;
+        let exponent: u32 = 3;
+        let result: Field = 6; // 5^3 mod 17 = 125 mod 17 = 6
+        main(base, exponent, result);
+    }
 
- #[test]
-fn denies_when_score_zero() {
-    // features = [1, 1, 1, 1], weights = [1, 2, 3, 4], bias = -10
-    // score = 1 + 2 + 3 + 4 - 10 = 0, so approval should be 0
-    main([1, 1, 1, 1], [1, 2, 3, 4], -10, 0);
-}
- #[test]
-fn denies_when_score_negative() {
-    // features = [0, 0, 0, 0], weights = [1, 2, 3, 4], bias = -1
-    // score = 0 - 1 = -1, so approval should be 0
-    main([0, 0, 0, 0], [1, 2, 3, 4], -1, 0);
-}
+    #[test]
+    fn test_pass_case_two() {
+        let base: u32 = 7;
+        let exponent: u32 = 2;
+        let result: Field = 15; // 7^2 mod 17 = 49 mod 17 = 15
+        main(base, exponent, result);
+    }
+
+    #[test(should_fail)]
+    fn test_fail_case() {
+        let base: u32 = 4;
+        let exponent: u32 = 2;
+        let result: Field = 5; // Incorrect on purpose (4^2 mod 17 = 16 mod 17 = 16)
+        main(base, exponent, result);
+    }

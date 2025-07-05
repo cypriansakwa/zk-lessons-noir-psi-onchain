@@ -16,7 +16,7 @@ contract CyprianVerifierAppTest is Test {
         verifierApp = new CyprianVerifierApp(verifier);
 
         // Set according to your circuit's expected public output!
-        publicInputs[0] = bytes32(uint256(1));
+        publicInputs[0] = bytes32(uint256(6));
     }
 
     function testVerifyProof() public {

@@ -1,7 +1,7 @@
 import { UltraHonkBackend } from "@aztec/bb.js";
 import fs from "fs";
 import path from "path";
-import circuit from "../circuits/target/privacy_linear_classifier.json";
+import circuit from "../circuits/target/noir_modular_exponentiation.json";
 // @ts-ignore
 import { Noir } from "@noir-lang/noir_js";
 
@@ -11,10 +11,10 @@ import { Noir } from "@noir-lang/noir_js";
     const honk = new UltraHonkBackend(circuit.bytecode, { threads: 1 });
 
     const inputs = {
-      features: [2, 1, 1, 1],
-      weights: [1, 2, 3, 4],
-      bias: -3, // If your circuit expects unsigned, encode as field element
-      approval: 1
+      x: 5,
+      e: 3,
+      modulus: 17,
+      y: 6
     };
 
     const { witness } = await noir.execute(inputs);

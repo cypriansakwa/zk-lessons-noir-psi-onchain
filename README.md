@@ -1,53 +1,51 @@
-# privacy_linear_classifier
+# noir_modular_exponentiation
 
-This project demonstrates a foundational Zero-Knowledge Proof (ZKP) use case:  
-**Proving knowledge of private credentials that satisfy a public weighted scoring formula — without revealing the credentials themselves.**
+This project demonstrates a simple **Zero-Knowledge Proof (ZKP)** circuit using **Noir** to prove knowledge of a modular exponentiation computation without revealing the base or the exponent.
 
----
+## 📝 Circuit Description
 
-## 🧠 Concept
+The circuit computes:
 
-We compute a **recovery score** based on 3 private weights and a public modifier:
+$$\mathrm{result} = \mathrm{base^exponent} \mod modulus$$
 
-```math
-recovery\_score = 2 \cdot w_1 + 3 \cdot w_2 + 5 \cdot w_3 + \texttt{public\_modifier}
+The modulus is hardcoded as a private constant inside the circuit.
 
 
-/// Proves knowledge of private w1, w2, w3 such that:
-/// required_score = 2*w1 + 3*w2 + 5*w3 + public_modifier
-fn main(w1: Field, w2: Field, w3: Field, public_modifier: pub Field, required_score: pub Field) {
-    let recovery_score = w1 * 2 + w2 * 3 + w3 * 5 + public_modifier;
-    assert(recovery_score == required_score);
+The modulus is hardcoded as a private constant inside the circuit.
+
+### Circuit Code
+
+```rust
+fn mod_exp(base: u32, exponent: u32, modulus: u32) -> u32 {
+    let mut result: u32 = 1;
+    let mut base_power: u32 = base % modulus;
+    let mut exp: u32 = exponent;
+
+    for _ in 0..32 {
+        if exp & 1 == 1 {
+            result = (result * base_power) % modulus;
+        }
+        base_power = (base_power * base_power) % modulus;
+        exp = exp >> 1;
+    }
+
+    result
 }
 
-// Passing test
-#[test]
-fn test_score_pass() {
-    let w1 = 1;
-    let w2 = 2;
-    let w3 = 3;
-    let public_modifier = 4;
-    let required_score = 27;
-    main(w1, w2, w3, public_modifier, required_score);
+fn main(x: u32, e: u32, y: pub Field) {
+    let modulus: u32 = 17;
+    let result: u32 = mod_exp(x, e, modulus);
+    let result_field: Field = result.into();
+    assert(result_field == y);
 }
+```
+- `x`: private base (`u32`)
+- `e`: private exponent (`u32`)
+- `y`: public expected result (`Field`)
 
-// Failing test
-#[test(should_fail)]
-fn test_score_fail() {
-    let w1 = 1;
-    let w2 = 1;
-    let w3 = 1;
-    let public_modifier = 1;
-    let required_score = 10; // wrong on purpose
-    main(w1, w2, w3, public_modifier, required_score);
-}
+The constraint ensures that:
+$$y = x^e \mod 17$$
 
-
-## ✅ Example Use Case
-
-A user can prove they have private credentials (e.g. access scores, trust levels, or eligibility factors) that meet a public threshold — without disclosing the underlying values.
-
----
 
 ## Project Structure
 
@@ -89,7 +87,7 @@ git submodule update
 nargo execute
 
 # Generate proof with keccak hash
-bb prove -b ./target/privacy_linear_classifier.json -w target/privacy_linear_classifier.gz -o ./target --oracle_hash keccak
+bb prove -b ./target/noir_modular_exponentiation.json -w target/noir_modular_exponentiation.gz -o ./target --oracle_hash keccak
 
 # Run Foundry test to verify proof
 cd ..

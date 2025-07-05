@@ -1,5 +1,5 @@
 [package]
-name = "privacy_linear_classifier"       
+name = "noir_modular_exponentiation"       
 type = "bin"
 authors = ["cypriansakwa"]
 compiler_version = ">=1.0.0"
