@@ -1,7 +1,7 @@
 import { UltraHonkBackend } from "@aztec/bb.js";
 import fs from "fs";
 import path from "path";
-import circuit from "../circuits/target/noir_modular_exponentiation.json";
+import circuit from "../circuits/target/ZKModExpCircuit.json";
 // @ts-ignore
 import { Noir } from "@noir-lang/noir_js";
 
@@ -11,10 +11,11 @@ import { Noir } from "@noir-lang/noir_js";
     const honk = new UltraHonkBackend(circuit.bytecode, { threads: 1 });
 
     const inputs = {
-      x: 5,
-      e: 3,
-      modulus: 17,
-      y: 6
+      base: 18,
+      exponent: 310,
+      modulus: 9999,
+      expected_result: 9054
+
     };
 
     const { witness } = await noir.execute(inputs);

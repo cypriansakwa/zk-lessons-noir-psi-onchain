@@ -1,17 +1,18 @@
-# noir_modular_exponentiation
+# ZKModExpCircuit
 
-This project demonstrates a simple **Zero-Knowledge Proof (ZKP)** circuit using **Noir** to prove knowledge of a modular exponentiation computation without revealing the base or the exponent.
+This project demonstrates a simple **Zero-Knowledge Proof (ZKP)** circuit using **Noir** to prove knowledge of a modular exponentiation computation. The circuit allows you to prove that you know the values for `base`, `exponent`, and `modulus` such that `expected_result = base^exponent mod modulus`, **without revealing** the base or the exponent.
+
+---
 
 ## 📝 Circuit Description
 
 The circuit computes:
 
-$$\mathrm{result} = \mathrm{base^exponent} \mod modulus$$
+$$
+\mathrm{expected_result} = \mathrm{base^exponent} \bmod \\mathrm{modulus}
+$$
 
-The modulus is hardcoded as a private constant inside the circuit.
-
-
-The modulus is hardcoded as a private constant inside the circuit.
+All values (`base`, `exponent`, `modulus`) are private inputs except `modulus` (which can be made public) and the `expected_result` (which is always public).
 
 ### Circuit Code
 
@@ -21,7 +22,7 @@ fn mod_exp(base: u32, exponent: u32, modulus: u32) -> u32 {
     let mut base_power: u32 = base % modulus;
     let mut exp: u32 = exponent;
 
-    for _ in 0..32 {
+    for _ in 0..32 { // Supports up to 32-bit exponent
         if exp & 1 == 1 {
             result = (result * base_power) % modulus;
         }
@@ -32,45 +33,57 @@ fn mod_exp(base: u32, exponent: u32, modulus: u32) -> u32 {
     result
 }
 
-fn main(x: u32, e: u32, y: pub Field) {
-    let modulus: u32 = 17;
-    let result: u32 = mod_exp(x, e, modulus);
-    let result_field: Field = result.into();
-    assert(result_field == y);
+fn main(base: u32, exponent: u32, modulus: pub u32, expected_result: pub Field) {
+    assert(modulus != 0);
+    let result: u32 = mod_exp(base, exponent, modulus);
+    let result_field: Field = result as Field;
+    assert(result_field == expected_result);
 }
 ```
-- `x`: private base (`u32`)
-- `e`: private exponent (`u32`)
-- `y`: public expected result (`Field`)
 
-The constraint ensures that:
-$$y = x^e \mod 17$$
+**Inputs:**
+- `base` (`u32`): The private base.
+- `exponent` (`u32`): The private exponent.
+- `modulus` (`pub u32`): The (optionally) public modulus.
+- `expected_result` (`pub Field`): The public output, must be equal to `base^exponent mod modulus`.
+
+The main constraint enforced by the circuit is:
+
+$$
+\mathrm{expected_result} = \mathrm{base^exponent} \bmod \mathrm{modulus}
+$$
+
+---
 
 
-## Project Structure
-
-This repo lets you verify Noir circuits (with the bb backend) using a Solidity verifier.
+## 📁 Project Structure
 
 - `/circuits` — Contains the Noir circuit and build scripts.
 - `/contract` — Foundry project with the Solidity verifier and integration test contract.
-- `/js` — JS code to generate proof and save as a file.
+- `/js` — JavaScript code to generate proof and save as a file.
 
-Tested with Noir >= 1.0.0-beta.6 and bb >= 0.84.0.
+**Tested with:**  
+- Noir >= 1.0.0-beta.6  
+- bb >= 0.84.0
 
-### Installation / Setup
+---
+
+## 🚀 Installation / Setup
 
 ```bash
-# Foundry
+# Update Foundry submodules
 git submodule update
 
-# Build circuits, generate verifier contract
+# Build circuits and generate the verifier contract
 (cd circuits && ./build.sh)
 
 # Install JS dependencies
 (cd js && yarn)
 ```
 
-### Proof Generation in JS
+---
+
+## 🛠️ Proof Generation in JavaScript
 
 ```bash
 # Use bb.js to generate proof and save to a file
@@ -80,16 +93,20 @@ git submodule update
 (cd contract && forge test --optimize --optimizer-runs 5000 --gas-report -vvv)
 ```
 
-### Proof Generation with bb CLI
+---
+
+## 🛠️ Proof Generation with bb CLI
 
 ```bash
 # Generate witness
 nargo execute
 
 # Generate proof with keccak hash
-bb prove -b ./target/noir_modular_exponentiation.json -w target/noir_modular_exponentiation.gz -o ./target --oracle_hash keccak
+bb prove -b ./target/ZKModExpCircuit.json -w target/ZKModExpCircuit.gz -o ./target --oracle_hash keccak
 
 # Run Foundry test to verify proof
-cd ..
 (cd contract && forge test --optimize --optimizer-runs 5000 --gas-report -vvv)
 ```
+
+---
+

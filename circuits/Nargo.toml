@@ -1,5 +1,5 @@
 [package]
-name = "noir_modular_exponentiation"       
+name = "ZKModExpCircuit"       
 type = "bin"
 authors = ["cypriansakwa"]
 compiler_version = ">=1.0.0"
