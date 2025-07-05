@@ -1,6 +1,7 @@
 import { UltraHonkBackend } from "@aztec/bb.js";
 import fs from "fs";
-import circuit from "../circuits/target/ZK_Aggregated_Credential_Score.json";
+import path from "path";
+import circuit from "../circuits/target/privacy_linear_classifier.json";
 // @ts-ignore
 import { Noir } from "@noir-lang/noir_js";
 
@@ -9,21 +10,19 @@ import { Noir } from "@noir-lang/noir_js";
     const noir = new Noir(circuit as any);
     const honk = new UltraHonkBackend(circuit.bytecode, { threads: 1 });
 
-    // Change these to match your circuit!
     const inputs = {
-      w1: 1,
-      w2: 2,
-      w3: 3,
-      public_modifier: 4,
-      required_score: 27,
+      features: [2, 1, 1, 1],
+      weights: [1, 2, 3, 4],
+      bias: -3, // If your circuit expects unsigned, encode as field element
+      approval: 1
     };
-   
+
     const { witness } = await noir.execute(inputs);
     const { proof, publicInputs } = await honk.generateProof(witness, {
       keccak: true,
     });
 
-    // save proof to file
+      // save proof to file
     fs.writeFileSync("../circuits/target/proof", proof);
 
     // not really needed as we harcode the public input in the contract test

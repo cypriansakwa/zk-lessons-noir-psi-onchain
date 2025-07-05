@@ -1,4 +1,4 @@
-# ZK Aggregated Credential Score
+# privacy_linear_classifier
 
 This project demonstrates a foundational Zero-Knowledge Proof (ZKP) use case:  
 **Proving knowledge of private credentials that satisfy a public weighted scoring formula — without revealing the credentials themselves.**
@@ -89,7 +89,7 @@ git submodule update
 nargo execute
 
 # Generate proof with keccak hash
-bb prove -b ./target/ZK_Aggregated_Credential_Score.json -w target/ZK_Aggregated_Credential_Score.gz -o ./target --oracle_hash keccak
+bb prove -b ./target/privacy_linear_classifier.json -w target/privacy_linear_classifier.gz -o ./target --oracle_hash keccak
 
 # Run Foundry test to verify proof
 cd ..

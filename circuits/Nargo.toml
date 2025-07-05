@@ -1,5 +1,5 @@
 [package]
-name = "ZK_Aggregated_Credential_Score"       
+name = "privacy_linear_classifier"       
 type = "bin"
 authors = ["cypriansakwa"]
 compiler_version = ">=1.0.0"

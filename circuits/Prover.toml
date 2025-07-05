@@ -1,5 +1,4 @@
-public_modifier = 4
-required_score = 27
-w1 = 1
-w2 = 2
-w3 = 3
+approval = 1
+bias = -3
+features = [2, 1, 1, 1]
+weights = [1, 2, 3, 4]
