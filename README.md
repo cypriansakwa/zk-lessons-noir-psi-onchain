@@ -1,6 +1,6 @@
-# zkp-pedersen-range-safe
+# noir-pedersen-bits16
 
-This project demonstrates a robust **Zero-Knowledge Proof (ZKP)** circuit using **Noir** to prove knowledge of a Pedersen commitment with safety and range checks. The circuit allows you to prove that you know the values for `message` and `blinding` such that `commitment = g^message * h^blinding`, **without revealing** `message` or `blinding`, and ensures your inputs are in a safe, user-defined range.
+This project demonstrates a robust **Zero-Knowledge Proof (ZKP)** circuit using **Noir** to prove knowledge of a Pedersen commitment. The circuit allows you to prove that you know the values for $x$ (message) and $r$ (blinding factor) such that $C = g^x \cdot h^r$, **without revealing** $x$ or $r$.
 
 ---
 
@@ -9,165 +9,125 @@ This project demonstrates a robust **Zero-Knowledge Proof (ZKP)** circuit using 
 The circuit computes:
 
 $$
-\mathrm{commitment} = g^{\mathrm{message}} \cdot h^{\mathrm{blinding}}
+C = g^x \cdot h^r
 $$
 
 and enforces:
 
-- `g` and `h` are public generators and **must not be zero**.
-- `message` and `blinding` are private inputs (the secret committed value and blinding factor).
-- `commitment` is a public output.
-- The `message` is **provably in a user-defined range** (`min_bound` and `max_bound`), with optional strictness.
-- Optionally, the `blinding` can be enforced to be strictly positive.
-- The bounds themselves are checked for consistency.
+- `g` and `h` are public generators.
+- `x` and `r` are private inputs (the secret committed value and blinding factor).
+- `C` is a public output (the Pedersen commitment).
 
 ### Circuit Code
 
 ```rust
-fn pow(base: Field, exp: u16) -> Field {
-    let mut result = 1;
-    let mut acc = base;
+// Exponentiation by binary bits, for 16 bits
+fn pow_bits(base: Field, bits: [Field; 16]) -> Field {
+    let mut acc = 1;
+    let mut power = base;
     for i in 0..16 {
-        if ((exp >> i) & 1) == 1 {
-            result *= acc;
-        }
-        acc *= acc;
+        // Enforce bitness: bits[i] must be 0 or 1
+        assert(bits[i] * (bits[i] - 1) == 0);
+        // Branchless accumulator update
+        acc = acc * (1 - bits[i]) + (acc * power) * bits[i];
+        power = power * power;
     }
-    result
-}
-
-/// Computes a Pedersen commitment: g^message * h^blinding
-fn pedersen_commit(message: u16, blinding: u16, g: Field, h: Field) -> Field {
-    let gm = pow(g, message);
-    let hr = pow(h, blinding);
-    gm * hr
+    acc
 }
 
 fn main(
-    message: u16,
-    blinding: u16,
-    g: pub Field,
-    h: pub Field,
-    commitment: pub Field,
-    min_bound: pub u16,
-    max_bound: pub u16,
-    strict_range: pub bool,              // If true, use strict inequalities for range
-    require_positive_blinding: pub bool  // If true, enforce blinding > 0
+    x_bits: [Field; 16], // secret exponent bits for x (little-endian, private)
+    r_bits: [Field; 16], // secret exponent bits for r (little-endian, private)
+    g: pub Field,        // public generator g
+    h: pub Field,        // public generator h
+    C: pub Field         // public commitment
 ) {
-    // Robustness and safety checks
-    assert(min_bound <= max_bound); // Consistent range
-    assert(g != 0);                 // Safe generators
-    assert(h != 0);
+    let g_x = pow_bits(g, x_bits);
+    let h_r = pow_bits(h, r_bits);
+    assert(g_x * h_r == C);
+}
 
-    // Optional: upper limit on message size (example: 65535)
-    let max_message_size: u16 = 65535;
-    assert(message <= max_message_size);
-
-    let computed_commitment = pedersen_commit(message, blinding, g, h);
-    assert(computed_commitment == commitment);
-
-    // Range proof
-    if strict_range {
-        assert(message > min_bound);
-        assert(message < max_bound);
-    } else {
-        assert(message >= min_bound);
-        assert(message <= max_bound);
+// Helper to convert integer to little-endian bit array
+fn int_to_bits_le(n: Field) -> [Field; 16] {
+    let mut arr = [0; 16];
+    let mut val = n;
+    for i in 0..16 {
+        let val_int: u32 = val as u32;
+        arr[i] = (val_int % 2) as Field;
+        val = (val_int / 2) as Field;
     }
+    arr
+}
 
-    // Optionally require positive blinding
-    if require_positive_blinding {
-        assert(blinding > 0);
-    }
+#[test]
+fn test_pedersen_commitment_pass_1() {
+    let x = 5;
+    let r = 7;
+    let g = 2;
+    let h = 3;
+
+    let x_bits = int_to_bits_le(x);
+    let r_bits = int_to_bits_le(r);
+
+    let g_x = pow_bits(g, x_bits);
+    let h_r = pow_bits(h, r_bits);
+    let C = g_x * h_r;
+
+    main(x_bits, r_bits, g, h, C);
 }
 ```
 
 **Inputs:**
-- `message` (`u16`): The secret value to commit to (private).
-- `blinding` (`u16`): The secret blinding factor (private).
+- `x_bits` (`[Field; 16]`): The secret value to commit to, as little-endian bits (private).
+- `r_bits` (`[Field; 16]`): The secret blinding factor, as little-endian bits (private).
 - `g` (`pub Field`): Pedersen generator (public, must be nonzero).
 - `h` (`pub Field`): Pedersen generator (public, must be nonzero).
-- `commitment` (`pub Field`): The public Pedersen commitment output.
-- `min_bound`/`max_bound` (`pub u16`): Range for the message (public).
-- `strict_range` (`pub bool`): Use strict inequalities for range proof.
-- `require_positive_blinding` (`pub bool`): Enforce blinding > 0.
+- `C` (`pub Field`): The public Pedersen commitment output.
 
-The main constraints enforced by the circuit are:
+The main constraint enforced by the circuit is:
 
 $$
-\mathrm{commitment} = g^{\mathrm{message}} \cdot h^{\mathrm{blinding}}
+C = g^x \cdot h^r
 $$
-
-And that the input values are in a safe, consistent range.
 
 ---
 
 ## 📁 Project Structure
 
-- `/circuits` — Contains the Noir circuit and build scripts.
-- `/contract` — Foundry project with the Solidity verifier and integration test contract.
-- `/js` — JavaScript code to generate proof and save as a file.
+- `/circuits` — Contains the Noir circuit code and scripts.
+- `/contract` — (Optional) Solidity verifier and integration test contract.
+- `/js` — (Optional) JavaScript code to generate proof and save as a file.
 
 **Tested with:**  
 - Noir >= 1.0.0-beta.6  
-- bb >= 0.84.0
 
 ---
 
 ## 🚀 Installation / Setup
 
 ```bash
-# Update Foundry submodules
-git submodule update
+# Build circuits
+cd circuits
+nargo build
 
-# Build circuits and generate the verifier contract
-(cd circuits && ./build.sh)
-
-# Install JS dependencies
-(cd js && yarn)
-```
-
----
-
-## 🛠️ Proof Generation in JavaScript
-
-```bash
-# Use bb.js to generate proof and save to a file
-(cd js && yarn generate-proof)
-
-# Run Foundry test to verify the generated proof
-(cd contract && forge test --optimize --optimizer-runs 5000 --gas-report -vvv)
-```
-
----
-
-## 🛠️ Proof Generation with bb CLI
-
-```bash
-# Generate witness
-nargo execute
-
-# Generate proof with keccak hash
-bb prove -b ./target/zkp_pedersen_range_safe.json -w target/zkp_pedersen_range_safe.gz -o ./target --oracle_hash keccak
-
-# Run Foundry test to verify proof
-(cd contract && forge test --optimize --optimizer-runs 5000 --gas-report -vvv)
+# Run tests
+nargo test
 ```
 
 ---
 
 ## 🧪 Testing
 
-You can add Noir unit tests for the circuit in `tests/pedersen.t`.  
-Example tests check that the circuit accepts correct commitments, rejects bad ranges, and handles edge cases like zero generators.
+Unit tests can be placed inside `src/main.nr` using the `#[test]` attribute.  
+Example tests check that the circuit accepts correct commitments and rejects incorrect ones.
 
 ---
 
 ## ℹ️ Notes
 
 - All arithmetic in the circuit is performed modulo the field prime (as set by Noir).
-- Both `g` and `h` must be fixed or agreed upon by all parties and must be marked as `pub` to ensure security.
-- `message` and `blinding` must remain private for the commitment to be hiding.
-- This circuit is robust against bad input ranges, zero generators, and (optionally) unsafe blinding.
+- Both `g` and `h` must be fixed or agreed upon by all parties and are marked as `pub`.
+- `x_bits` and `r_bits` must remain private for the commitment to be hiding.
+- This circuit is robust against bad inputs and enforces bitness for all private bits.
 
 ---

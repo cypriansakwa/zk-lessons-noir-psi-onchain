@@ -1,5 +1,5 @@
 [package]
-name = "zkp_pedersen_range_safe"       
+name = "noir_pedersen_bits16"       
 type = "bin"
 authors = ["cypriansakwa"]
 compiler_version = ">=1.0.0"

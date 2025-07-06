@@ -1,137 +1,86 @@
-// Robust Pedersen Commitment Circuit with Range, Consistency, and Safety Checks
-
-fn pow(base: Field, exp: u16) -> Field {
-    let mut result = 1;
-    let mut acc = base;
+// Exponentiation by binary bits, for 16 bits
+fn pow_bits(base: Field, bits: [Field; 16]) -> Field {
+    let mut acc = 1;
+    let mut power = base;
     for i in 0..16 {
-        if ((exp >> i) & 1) == 1 {
-            result *= acc;
-        }
-        acc *= acc;
+        assert(bits[i] * (bits[i] - 1) == 0);
+        acc = acc * (1 - bits[i]) + (acc * power) * bits[i];
+        power = power * power;
     }
-    result
-}
-
-fn pedersen_commit(message: u16, blinding: u16, g: Field, h: Field) -> Field {
-    let gm = pow(g, message);
-    let hr = pow(h, blinding);
-    gm * hr
+    acc
 }
 
 fn main(
-    message: u16,
-    blinding: u16,
+    x_bits: [Field; 16],
+    r_bits: [Field; 16],
     g: pub Field,
     h: pub Field,
-    commitment: pub Field,
-    min_bound: pub u16,
-    max_bound: pub u16,
-    strict_range: pub bool,
-    require_positive_blinding: pub bool
+    C: pub Field
 ) {
-    // Robustness and safety checks
-    assert(min_bound <= max_bound); // Consistent range
-    assert(g != 0);                 // Safe generators
-    assert(h != 0);
+    let g_x = pow_bits(g, x_bits);
+    let h_r = pow_bits(h, r_bits);
+    assert(g_x * h_r == C);
+}
 
-    // Optional: upper limit on message size (e.g., to prevent expensive proofs)
-    let max_message_size: u16 = 65535; // Can be adjusted as needed
-    assert(message <= max_message_size);
-
-    let computed_commitment = pedersen_commit(message, blinding, g, h);
-    assert(computed_commitment == commitment);
-
-    // Range proof
-    if strict_range {
-        assert(message > min_bound);
-        assert(message < max_bound);
-    } else {
-        assert(message >= min_bound);
-        assert(message <= max_bound);
+// Helper to convert integer to little-endian bit array
+fn int_to_bits_le(n: Field) -> [Field; 16] {
+    let mut arr = [0; 16];
+    let mut val = n;
+    for i in 0..16 {
+        let val_int: u32 = val as u32;
+        arr[i] = (val_int % 2) as Field;
+        val = (val_int / 2) as Field;
     }
-
-    if require_positive_blinding {
-        assert(blinding > 0);
-    }
+    arr
 }
 
 #[test]
-fn test_pedersen_commit_pass_case_non_strict() {
-    let message: u16 = 10;
-    let blinding: u16 = 7;
-    let g: Field = 5;
-    let h: Field = 3;
+fn test_pedersen_commitment_pass_1() {
+    let x = 5;
+    let r = 7;
+    let g = 2;
+    let h = 3;
 
-    let commitment = pedersen_commit(message, blinding, g, h);
+    let x_bits = int_to_bits_le(x);
+    let r_bits = int_to_bits_le(r);
 
-    let min_bound: u16 = 5;
-    let max_bound: u16 = 15;
-    let strict_range: bool = false;
-    let require_positive_blinding: bool = false;
+    let g_x = pow_bits(g, x_bits);
+    let h_r = pow_bits(h, r_bits);
+    let C = g_x * h_r;
 
-    main(
-        message,
-        blinding,
-        g,
-        h,
-        commitment,
-        min_bound,
-        max_bound,
-        strict_range,
-        require_positive_blinding
-    );
+    main(x_bits, r_bits, g, h, C);
 }
 
 #[test]
-fn test_pedersen_commit_pass_case_strict_and_positive_blinding() {
-    let message: u16 = 8;
-    let blinding: u16 = 1;
-    let g: Field = 7;
-    let h: Field = 11;
+fn test_pedersen_commitment_pass_2() {
+    let x = 1;
+    let r = 15;
+    let g = 4;
+    let h = 5;
 
-    let commitment = pedersen_commit(message, blinding, g, h);
+    let x_bits = int_to_bits_le(x);
+    let r_bits = int_to_bits_le(r);
 
-    let min_bound: u16 = 5;
-    let max_bound: u16 = 10;
-    let strict_range: bool = true;
-    let require_positive_blinding: bool = true;
+    let g_x = pow_bits(g, x_bits);
+    let h_r = pow_bits(h, r_bits);
+    let C = g_x * h_r;
 
-    main(
-        message,
-        blinding,
-        g,
-        h,
-        commitment,
-        min_bound,
-        max_bound,
-        strict_range,
-        require_positive_blinding
-    );
+    main(x_bits, r_bits, g, h, C);
 }
 
 #[test(should_fail)]
-fn test_pedersen_commit_fail_wrong_commitment() {
-    let message: u16 = 6;
-    let blinding: u16 = 3;
-    let g: Field = 2;
-    let h: Field = 5;
+fn test_pedersen_commitment_fail() {
+    let x = 2;
+    let r = 3;
+    let g = 6;
+    let h = 7;
 
-    let wrong_commitment: Field = 12345;  // Deliberately incorrect
+    let x_bits = int_to_bits_le(x);
+    let r_bits = int_to_bits_le(r);
 
-    let min_bound: u16 = 1;
-    let max_bound: u16 = 10;
-    let strict_range: bool = false;
-    let require_positive_blinding: bool = false;
+    let g_x = pow_bits(g, x_bits);
+    let h_r = pow_bits(h, r_bits);
+    let C = g_x * h_r + 1; // Intentionally wrong
 
-    main(
-        message,
-        blinding,
-        g,
-        h,
-        wrong_commitment,
-        min_bound,
-        max_bound,
-        strict_range,
-        require_positive_blinding
-    );
+    main(x_bits, r_bits, g, h, C);
 }
