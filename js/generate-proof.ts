@@ -1,7 +1,7 @@
 import { UltraHonkBackend } from "@aztec/bb.js";
 import fs from "fs";
 import path from "path";
-import circuit from "../circuits/target/ZKModExpCircuit.json";
+import circuit from "../circuits/target/noir_pedersen_commitment.json";
 // @ts-ignore
 import { Noir } from "@noir-lang/noir_js";
 
@@ -11,12 +11,12 @@ import { Noir } from "@noir-lang/noir_js";
     const honk = new UltraHonkBackend(circuit.bytecode, { threads: 1 });
 
     const inputs = {
-      base: 18,
-      exponent: 310,
-      modulus: 9999,
-      expected_result: 9054
-
-    };
+      message: 3,
+      blinding: 5,
+      g: 7,
+      h: 11,
+      commitment: 55240493
+     };
 
     const { witness } = await noir.execute(inputs);
     const { proof, publicInputs } = await honk.generateProof(witness, {

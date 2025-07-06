@@ -1,6 +1,6 @@
-# ZKModExpCircuit
+# noir pedersen commitment
 
-This project demonstrates a simple **Zero-Knowledge Proof (ZKP)** circuit using **Noir** to prove knowledge of a modular exponentiation computation. The circuit allows you to prove that you know the values for `base`, `exponent`, and `modulus` such that `expected_result = base^exponent mod modulus`, **without revealing** the base or the exponent.
+This project demonstrates a simple **Zero-Knowledge Proof (ZKP)** circuit using **Noir** to prove knowledge of a Pedersen commitment computation. The circuit allows you to prove that you know the values for `message` and `blinding` such that `commitment = g^message * h^blinding`, **without revealing** `message` or `blinding`.
 
 ---
 
@@ -9,52 +9,61 @@ This project demonstrates a simple **Zero-Knowledge Proof (ZKP)** circuit using 
 The circuit computes:
 
 $$
-\mathrm{expected_result} = \mathrm{base^exponent} \bmod \\mathrm{modulus}
+\mathrm{commitment} = g^{\mathrm{message}} \cdot h^{\mathrm{blinding}}
 $$
 
-All values (`base`, `exponent`, `modulus`) are private inputs except `modulus` (which can be made public) and the `expected_result` (which is always public).
+- `g` and `h` are public generators.
+- `message` and `blinding` are private inputs (the secret committed value and blinding factor).
+- `commitment` is a public output.
 
 ### Circuit Code
 
 ```rust
-fn mod_exp(base: u32, exponent: u32, modulus: u32) -> u32 {
-    let mut result: u32 = 1;
-    let mut base_power: u32 = base % modulus;
-    let mut exp: u32 = exponent;
-
-    for _ in 0..32 { // Supports up to 32-bit exponent
-        if exp & 1 == 1 {
-            result = (result * base_power) % modulus;
+fn pow(base: Field, exp: u16) -> Field {
+    let mut result = 1;
+    let mut acc = base;
+    for i in 0..16 {
+        if ((exp >> i) & 1) == 1 {
+            result *= acc;
         }
-        base_power = (base_power * base_power) % modulus;
-        exp = exp >> 1;
+        acc *= acc;
     }
-
     result
 }
 
-fn main(base: u32, exponent: u32, modulus: pub u32, expected_result: pub Field) {
-    assert(modulus != 0);
-    let result: u32 = mod_exp(base, exponent, modulus);
-    let result_field: Field = result as Field;
-    assert(result_field == expected_result);
+/// Computes a Pedersen commitment: g^message * h^blinding
+fn pedersen_commit(message: u16, blinding: u16, g: Field, h: Field) -> Field {
+    let gm = pow(g, message);
+    let hr = pow(h, blinding);
+    gm * hr
+}
+
+fn main(
+    message: u16,
+    blinding: u16,
+    g: pub Field,
+    h: pub Field,
+    commitment: pub Field
+) {
+    let computed_commitment = pedersen_commit(message, blinding, g, h);
+    assert(computed_commitment == commitment);
 }
 ```
 
 **Inputs:**
-- `base` (`u32`): The private base.
-- `exponent` (`u32`): The private exponent.
-- `modulus` (`pub u32`): The (optionally) public modulus.
-- `expected_result` (`pub Field`): The public output, must be equal to `base^exponent mod modulus`.
+- `message` (`u16`): The secret value to commit to (private).
+- `blinding` (`u16`): The secret blinding factor (private).
+- `g` (`pub Field`): Pedersen generator (public).
+- `h` (`pub Field`): Pedersen generator (public).
+- `commitment` (`pub Field`): The public Pedersen commitment output.
 
 The main constraint enforced by the circuit is:
 
 $$
-\mathrm{expected_result} = \mathrm{base^exponent} \bmod \mathrm{modulus}
+\mathrm{commitment} = g^{\mathrm{message}} \cdot h^{\mathrm{blinding}}
 $$
 
 ---
-
 
 ## 📁 Project Structure
 
@@ -102,7 +111,7 @@ git submodule update
 nargo execute
 
 # Generate proof with keccak hash
-bb prove -b ./target/ZKModExpCircuit.json -w target/ZKModExpCircuit.gz -o ./target --oracle_hash keccak
+bb prove -b ./target/noir_pedersen_commitment.json -w target/noir_pedersen_commitment.gz -o ./target --oracle_hash keccak
 
 # Run Foundry test to verify proof
 (cd contract && forge test --optimize --optimizer-runs 5000 --gas-report -vvv)
@@ -110,3 +119,17 @@ bb prove -b ./target/ZKModExpCircuit.json -w target/ZKModExpCircuit.gz -o ./targ
 
 ---
 
+## 🧪 Testing
+
+You can add Noir unit tests for the circuit in `tests/pedersen.t`.  
+Example tests check that the circuit accepts correct commitments and rejects incorrect ones.
+
+---
+
+## ℹ️ Notes
+
+- All arithmetic in the circuit is performed modulo the field prime (as set by Noir).
+- Both `g` and `h` must be fixed or agreed upon by all parties and must be marked as `pub` to ensure security.
+- `message` and `blinding` must remain private for the commitment to be hiding.
+
+---

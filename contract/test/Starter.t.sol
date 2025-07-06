@@ -9,15 +9,16 @@ import "../Verifier.sol";
 contract CyprianVerifierAppTest is Test {
     CyprianVerifierApp public verifierApp;
     HonkVerifier public verifier;
-    bytes32[] public publicInputs = new bytes32[](2);
+    bytes32[] public publicInputs = new bytes32[](3);
 
     function setUp() public {
         verifier = new HonkVerifier();
         verifierApp = new CyprianVerifierApp(verifier);
 
         // Set according to your circuit's expected public output!
-        publicInputs[0] = bytes32(uint256(9999));
-        publicInputs[1] = bytes32(uint256(9054));
+        publicInputs[0] = bytes32(uint256(7));
+        publicInputs[1] = bytes32(uint256(11));
+        publicInputs[2] = bytes32(uint256(55240493));
     }
 
     function testVerifyProof() public {

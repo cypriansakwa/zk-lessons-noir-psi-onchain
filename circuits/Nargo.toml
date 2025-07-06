@@ -1,5 +1,5 @@
 [package]
-name = "ZKModExpCircuit"       
+name = "noir_pedersen_commitment"       
 type = "bin"
 authors = ["cypriansakwa"]
 compiler_version = ">=1.0.0"

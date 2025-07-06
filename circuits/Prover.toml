@@ -1,4 +1,5 @@
-base = 18
-expected_result = 9054
-exponent = 310
-modulus = 9999
+blinding = 5
+commitment = 55240493
+g = 7
+h = 11
+message = 3

@@ -1,58 +1,69 @@
-fn mod_exp(base: u32, exponent: u32, modulus: u32) -> u32 {
-    let mut result: u32 = 1;
-    let mut base_power: u32 = base % modulus;
-    let mut exp: u32 = exponent;
-
-    for _ in 0..32 { // Supports up to 32-bit exponent
-        if exp & 1 == 1 {
-            result = (result * base_power) % modulus;
+fn pow(base: Field, exp: u16) -> Field {
+    // Computes base^exp using binary (square-and-multiply) exponentiation.
+    let mut result = 1;
+    let mut acc = base;
+    for i in 0..16 {
+        if ((exp >> i) & 1) == 1 {
+            result *= acc;
         }
-        base_power = (base_power * base_power) % modulus;
-        exp = exp >> 1;
+        acc *= acc;
     }
-
     result
 }
 
-fn main(base: u32, exponent: u32, modulus: pub u32, expected_result: pub Field) {
-    assert(modulus != 0);
-    let result: u32 = mod_exp(base, exponent, modulus);
-    let result_field: Field = result as Field;
-    assert(result_field == expected_result);
+/// Computes a Pedersen commitment: g^message * h^blinding
+fn pedersen_commit(message: u16, blinding: u16, g: Field, h: Field) -> Field {
+    let gm = pow(g, message);
+    let hr = pow(h, blinding);
+    gm * hr
+}
+
+fn main(
+    message: u16,
+    blinding: u16,
+    g: pub Field,
+    h: pub Field,
+    commitment: pub Field
+) {
+    let computed_commitment = pedersen_commit(message, blinding, g, h);
+    assert(computed_commitment == commitment);
 }
 
 #[test]
-fn test_mod_exp_pass_large_exponent() {
-    let base: u32 = 3;
-    let exponent: u32 = 29;
-    let modulus: u32 = 100;
-    let expected_result: Field = 83 as Field; // 3^29 mod 100 = 83
-    main(base, exponent, modulus, expected_result);
+fn test_pedersen_commit_pass_case_one() {
+    let message: u16 = 3;
+    let blinding: u16 = 5;
+    let g: Field = 7;
+    let h: Field = 11;
+
+    // Compute commitment: g^message * h^blinding = 7^3 * 11^5
+    let expected_commitment: Field = pedersen_commit(message, blinding, g, h);
+
+    main(message, blinding, g, h, expected_commitment);
 }
 
 #[test]
-fn test_mod_exp_pass_max_exponent() {
-    let base: u32 = 2;
-    let exponent: u32 = 31; 
-    let modulus: u32 = 1000;
-    let expected_result: Field = 648 as Field; // 2^31 mod 1000 = 648
-    main(base, exponent, modulus, expected_result);
-}
+fn test_pedersen_commit_pass_case_two() {
+    let message: u16 = 2;
+    let blinding: u16 = 4;
+    let g: Field = 5;
+    let h: Field = 13;
 
-#[test]
-fn test_mod_exp_pass_big_exponent() {
-    let base: u32 = 18;
-    let exponent: u32 = 310; 
-    let modulus: u32 = 9999;
-    let expected_result: Field = 9054 as Field; // 18^310 mod 9999 = 9054
-    main(base, exponent, modulus, expected_result);
+    // Compute commitment: 5^2 * 13^4
+    let expected_commitment: Field = pedersen_commit(message, blinding, g, h);
+
+    main(message, blinding, g, h, expected_commitment);
 }
 
 #[test(should_fail)]
-fn test_mod_exp_fail_incorrect_expected() {
-    let base: u32 = 12;
-    let exponent: u32 = 479; 
-    let modulus: u32 = 9999;
-    let expected_result: Field = 87 as Field; // 12^479 mod 9999 = 1926
-    main(base, exponent, modulus, expected_result);
+fn test_pedersen_commit_fail_case() {
+    let message: u16 = 2;
+    let blinding: u16 = 3;
+    let g: Field = 5;
+    let h: Field = 13;
+
+    // Wrong expected commitment on purpose
+    let wrong_commitment: Field = 12345;
+
+    main(message, blinding, g, h, wrong_commitment);
 }
