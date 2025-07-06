@@ -1,5 +1,5 @@
 [package]
-name = "noir_pedersen_commitment"       
+name = "zkp_pedersen_range_safe"       
 type = "bin"
 authors = ["cypriansakwa"]
 compiler_version = ">=1.0.0"

@@ -1,5 +1,9 @@
-blinding = 5
-commitment = 55240493
-g = 7
-h = 11
-message = 3
+blinding = 7
+commitment = 21357421875
+g = 5
+h = 3
+max_bound = 15
+message = 10
+min_bound = 5
+require_positive_blinding = false
+strict_range = false
