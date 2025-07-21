@@ -131,3 +131,39 @@ Example tests check that the circuit accepts correct commitments and rejects inc
 - This circuit is robust against bad inputs and enforces bitness for all private bits.
 
 ---
+### Installation / Setup
+
+```bash
+# Foundry
+git submodule update
+
+# Build circuits, generate verifier contract
+(cd circuits && ./build.sh)
+
+# Install JS dependencies
+(cd js && yarn)
+```
+
+### Proof Generation in JS
+
+```bash
+# Use bb.js to generate proof and save to a file
+(cd js && yarn generate-proof)
+
+# Run Foundry test to verify the generated proof
+(cd contract && forge test --optimize --optimizer-runs 5000 --gas-report -vvv)
+```
+
+### Proof Generation with bb CLI
+
+```bash
+# Generate witness
+nargo execute
+
+# Generate proof with keccak hash
+bb prove -b ./target/noir_private_matrix_proof.json -w target/noir_private_matrix_proof.gz -o ./target --oracle_hash keccak
+
+# Run Foundry test to verify proof
+cd ..
+(cd contract && forge test --optimize --optimizer-runs 5000 --gas-report -vvv)
+```

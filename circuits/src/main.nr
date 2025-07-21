@@ -1,86 +1,86 @@
-// Exponentiation by binary bits, for 16 bits
-fn pow_bits(base: Field, bits: [Field; 16]) -> Field {
-    let mut acc = 1;
-    let mut power = base;
-    for i in 0..16 {
-        assert(bits[i] * (bits[i] - 1) == 0);
-        acc = acc * (1 - bits[i]) + (acc * power) * bits[i];
-        power = power * power;
-    }
-    acc
-}
+// Noir circuit for proving knowledge of matrices A (2x3) and B (3x2) such that C = A * B.
+// PUBLIC OUTPUT: c_flat - The result matrix C, flattened as [Field; 4] (2x2).
+// PRIVATE INPUTS: a_flat - Matrix A, flattened as [Field; 6] (2x3).
+//                 b_flat - Matrix B, flattened as [Field; 6] (3x2).
+// The circuit asserts that C == A * B, but does NOT reveal A or B to the verifier.
+// For production, ensure input data is validated to be within expected ranges/types.
 
 fn main(
-    x_bits: [Field; 16],
-    r_bits: [Field; 16],
-    g: pub Field,
-    h: pub Field,
-    C: pub Field
-) {
-    let g_x = pow_bits(g, x_bits);
-    let h_r = pow_bits(h, r_bits);
-    assert(g_x * h_r == C);
-}
+    c_flat: [Field; 4],     // PUBLIC input/output: Matrix C (flattened 2x2)
+    a_flat: [Field; 6],     // PRIVATE input: Matrix A (flattened 2x3)
+    b_flat: [Field; 6],     // PRIVATE input: Matrix B (flattened 3x2)
+) -> pub [Field; 4] {
+    // Unflatten A into 2x3 matrix
+    let a = [
+        [a_flat[0], a_flat[1], a_flat[2]],
+        [a_flat[3], a_flat[4], a_flat[5]],
+    ];
 
-// Helper to convert integer to little-endian bit array
-fn int_to_bits_le(n: Field) -> [Field; 16] {
-    let mut arr = [0; 16];
-    let mut val = n;
-    for i in 0..16 {
-        let val_int: u32 = val as u32;
-        arr[i] = (val_int % 2) as Field;
-        val = (val_int / 2) as Field;
+    // Unflatten B into 3x2 matrix
+    let b = [
+        [b_flat[0], b_flat[1]],
+        [b_flat[2], b_flat[3]],
+        [b_flat[4], b_flat[5]],
+    ];
+
+    // Unflatten C into 2x2 matrix (used for assertion)
+    let c = [
+        [c_flat[0], c_flat[1]],
+        [c_flat[2], c_flat[3]],
+    ];
+
+    // Matrix multiplication check: C == A * B
+    for i in 0..2 {
+        for j in 0..2 {
+            let mut sum = 0;
+            for k in 0..3 {
+                sum += a[i][k] * b[k][j];
+            }
+            assert(sum == c[i][j]);
+        }
     }
-    arr
+
+    // Return C as the public output
+    c_flat
+}
+
+// --- TESTS ---
+#[test]
+fn test_matrix_mul_pass_1() {
+    let a = [1, 2, 3, 4, 5, 6];
+    let b = [7, 8, 9, 10, 11, 12];
+    let c = [58, 64, 139, 154];
+
+    let result = main(c, a, b);
+    assert(result == c);
 }
 
 #[test]
-fn test_pedersen_commitment_pass_1() {
-    let x = 5;
-    let r = 7;
-    let g = 2;
-    let h = 3;
+fn test_matrix_mul_pass_2() {
+    let a = [2, 0, 1, 1, 3, 4];
+    let b = [1, 2, 0, 1, 4, 0];
+    let c = [6, 4, 17, 5];
 
-    let x_bits = int_to_bits_le(x);
-    let r_bits = int_to_bits_le(r);
-
-    let g_x = pow_bits(g, x_bits);
-    let h_r = pow_bits(h, r_bits);
-    let C = g_x * h_r;
-
-    main(x_bits, r_bits, g, h, C);
-}
-
-#[test]
-fn test_pedersen_commitment_pass_2() {
-    let x = 1;
-    let r = 15;
-    let g = 4;
-    let h = 5;
-
-    let x_bits = int_to_bits_le(x);
-    let r_bits = int_to_bits_le(r);
-
-    let g_x = pow_bits(g, x_bits);
-    let h_r = pow_bits(h, r_bits);
-    let C = g_x * h_r;
-
-    main(x_bits, r_bits, g, h, C);
+    let result = main(c, a, b);
+    assert(result == c);
 }
 
 #[test(should_fail)]
-fn test_pedersen_commitment_fail() {
-    let x = 2;
-    let r = 3;
-    let g = 6;
-    let h = 7;
+fn test_matrix_mul_fail_1() {
+    let a = [1, 2, 3, 4, 5, 6];
+    let b = [7, 8, 9, 10, 11, 12];
+    let c = [0, 0, 0, 0]; // Incorrect C
 
-    let x_bits = int_to_bits_le(x);
-    let r_bits = int_to_bits_le(r);
+    let result = main(c, a, b);
+    assert(result == c);
+}
 
-    let g_x = pow_bits(g, x_bits);
-    let h_r = pow_bits(h, r_bits);
-    let C = g_x * h_r + 1; // Intentionally wrong
+#[test(should_fail)]
+fn test_matrix_mul_fail_2() {
+    let a = [2, 0, 1, 1, 3, 4];
+    let b = [1, 2, 0, 1, 4, 0];
+    let c = [1, 1, 1, 1]; // Incorrect C
 
-    main(x_bits, r_bits, g, h, C);
+    let result = main(c, a, b);
+    assert(result == c);
 }
