@@ -1,5 +1,5 @@
 // Noir circuit for proving knowledge of matrices A (2x3) and B (3x2) such that C = A * B.
-// PUBLIC OUTPUT: c_flat - The result matrix C, flattened as [Field; 4] (2x2).
+// PUBLIC INPUT/OUTPUT: c_flat - The result matrix C, flattened as [Field; 4] (2x2).
 // PRIVATE INPUTS: a_flat - Matrix A, flattened as [Field; 6] (2x3).
 //                 b_flat - Matrix B, flattened as [Field; 6] (3x2).
 // The circuit asserts that C == A * B, but does NOT reveal A or B to the verifier.
