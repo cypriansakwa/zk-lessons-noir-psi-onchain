@@ -1,8 +1,9 @@
 [package]
-name = "noir_linear_transform_proof"       
+name = "noir_psi_proof"       
 type = "bin"
 authors = ["cypriansakwa"]
 compiler_version = ">=1.0.0"
 
 [dependencies]
+
 

@@ -1,5 +1,5 @@
-cache
-out
+contract/cache
+contract/out
 proofs
 broadcast
 .env
@@ -13,6 +13,6 @@ js/node_modules
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
-node_modules
+js/node_modules
 .pnp.*
 

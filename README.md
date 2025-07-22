@@ -1,6 +1,8 @@
-# Noir Linear Transformation Proof Circuit
+# Hash-Based Private Set Intersection (PSI)
 
-This project demonstrates a robust **Zero-Knowledge Proof (ZKP)** circuit using **Noir** for privacy-preserving verification of a linear transformation. The circuit allows you to prove that you applied a secret linear transformation (matrix multiplication) to secret input data, resulting in a public output, **without revealing the transformation matrix or the input data to the verifier**.
+This circuit allows a prover to demonstrate that the intersection between their private set A and a public set B has a known result (e.g., a specific number of overlapping items), **without revealing the full contents of A**.
+
+This project demonstrates a robust **Zero-Knowledge Proof (ZKP)** circuit using **Noir** for privacy-preserving verification of private set intersection. The circuit allows you to prove, in zero-knowledge, that the intersection between your private set and a public set has a specified cardinality, **without revealing your private set**.
 
 ---
 
@@ -9,54 +11,97 @@ This project demonstrates a robust **Zero-Knowledge Proof (ZKP)** circuit using 
 ### What does the circuit do?
 
 - **Public Input/Output:**
-  - `y` (`[Field; 3]`): The output vector, result of the transformation (3-dimensional).
+  - `b` (`[Field; 4]`): The public set (4 elements).
+  - `expected_count` (`Field`): The expected intersection count.
 - **Private Inputs:**
-  - `w_flat` (`[Field; 6]`): Transformation matrix W, flattened as `[W00, W01, W10, W11, W20, W21]` (3x2).
-  - `x` (`[Field; 2]`): Input vector x (2-dimensional).
+  - `a` (`[Field; 4]`): The private set (4 elements).
 
-The circuit **asserts** that when W and x are reshaped to their respective dimensions, their product equals y.  
-It does **not reveal** W or x to the verifier.
+The circuit:
+1. **Deduplicates** both sets, padding with a sentinel value (`0`).
+2. **Hashes** each unique element using Poseidon.
+3. **Counts** the number of hashed elements that appear in both sets.
+4. **Asserts** the intersection count matches `expected_count`.
+
+**Important:** Inputs must NOT contain the value `0`, which is reserved as a sentinel for padding.  
+If your domain allows `0` as a valid input, you must change the sentinel value in the circuit.
 
 ### Key Constraint
 
 $$
-y = W \times x
+\text{count} = |\text{dedup}(a) \cap \text{dedup}(b)|
 $$
 
 ### Example Circuit Code
 
 ```rust
-/// Performs matrix-vector multiplication: y = W * x
-/// W is provided as a 3x2 matrix, flattened into a 6-element array
-/// x is a 2-element vector
-/// Returns a 3-element output vector
-fn linear_transform(w_flat: [Field; 6], x: [Field; 2]) -> [Field; 3] {
-    let mut y = [0; 3];
-    for i in 0..3 {
-        let mut sum = 0;
-        for j in 0..2 {
-            let idx_w = (i as u32) * 2 + (j as u32); // calculate index for flattened W
-            sum += w_flat[idx_w] * x[j];
+mod poseidon;
+
+/// Deduplicates a 4-element array, pads with sentinel (0).
+/// NOTE: Inputs must NOT contain 0; 0 is reserved as padding.
+fn dedup(input: [Field; 4]) -> ([Field; 4], u32) {
+    let mut out = [0; 4];
+    let mut count = 0;
+    for i in 0..4 {
+        let mut seen = 0;
+        for j in 0..i {
+            seen += if input[i] == input[j] { 1 } else { 0 };
         }
-        y[i] = sum;
+        if seen == 0 {
+            out[count] = input[i];
+            count += 1;
+        }
     }
-    y
+    (out, count)
 }
 
-/// Main entry point for the circuit
-/// y: public output (3-element vector)
-/// w_flat: private matrix W (flattened 3x2)
-/// x: private input vector (2-element)
-fn main(
-    y: [Field; 3],        // PUBLIC output
-    w_flat: [Field; 6],   // PRIVATE matrix W (3x2, flattened)
-    x: [Field; 2],        // PRIVATE input vector x
-) -> pub [Field; 3] {
-    let computed_y = linear_transform(w_flat, x);
-    for i in 0..3 {
-        assert(computed_y[i] == y[i]);
+fn hash_set(set: [Field; 4], n: u32) -> [Field; 4] {
+    let mut hashed = [0; 4];
+    for i in 0..4 {
+        if i < n {
+            hashed[i] = poseidon::bn254::hash_1([set[i]]);
+        }
     }
-    y
+    hashed
+}
+
+fn count_intersection(a: [Field; 4], n_a: u32, b: [Field; 4], n_b: u32) -> Field {
+    let mut count = 0;
+    for i in 0..4 {
+        if i < n_a {
+            let mut found = 0;
+            for j in 0..4 {
+                if j < n_b {
+                    found += if a[i] == b[j] { 1 } else { 0 };
+                }
+            }
+            count += if found > 0 { 1 } else { 0 };
+        }
+    }
+    count
+}
+
+/// Main entry point.
+/// Asserts that input sets contain no 0s (which is reserved for padding).
+fn main(
+    a: [Field; 4],          // private set
+    b: [Field; 4],          // public set
+    expected_count: Field,  // public expected intersection count
+) -> pub Field {
+    // Enforce: inputs must not contain 0!
+    for i in 0..4 {
+        assert(a[i] != 0);
+        assert(b[i] != 0);
+    }
+
+    let (a_dedup, n_a) = dedup(a);
+    let (b_dedup, n_b) = dedup(b);
+
+    let hashed_a = hash_set(a_dedup, n_a);
+    let hashed_b = hash_set(b_dedup, n_b);
+
+    let count = count_intersection(hashed_a, n_a, hashed_b, n_b);
+    assert(count == expected_count);
+    count
 }
 ```
 
@@ -68,26 +113,47 @@ The circuit includes tests for passing and failing cases, e.g.:
 
 ```rust
 #[test]
-fn test_linear_transform_pass() {
-    // W = [[1,2],[3,4],[5,6]]
-    let w = [1, 2, 3, 4, 5, 6];
-    // x = [10, 20]
-    let x = [10, 20];
-    // y = [1*10+2*20, 3*10+4*20, 5*10+6*20] = [50, 110, 170]
-    let y = [50, 110, 170];
-
-    let result = main(y, w, x);
-    assert(result == y);
+fn test_intersection_2() {
+    let a = [1, 2, 3, 4];
+    let b = [3, 4, 5, 6];
+    let expected_count = 2;
+    let result = main(a, b, expected_count);
+    assert(result == expected_count);
 }
 
-#[test(should_fail)]
-fn test_linear_transform_fail_wrong_output() {
-    let w = [1, 2, 3, 4, 5, 6];
-    let x = [10, 20];
-    let y_wrong = [0, 0, 0]; // Incorrect output
+#[test]
+fn test_intersection_0() {
+    let a = [1, 2, 3, 4];
+    let b = [5, 6, 7, 8];
+    let expected_count = 0;
+    let result = main(a, b, expected_count);
+    assert(result == expected_count);
+}
 
-    let result = main(y_wrong, w, x);
-    assert(result == y_wrong);
+#[test]
+fn test_intersection_full_overlap() {
+    let a = [9, 10, 11, 12];
+    let b = [12, 11, 10, 9];
+    let expected_count = 4;
+    let result = main(a, b, expected_count);
+    assert(result == expected_count);
+}
+
+#[test]
+fn test_intersection_with_duplicates() {
+    let a = [1, 1, 2, 3];
+    let b = [2, 2, 3, 4];
+    let expected_count = 2;
+    let result = main(a, b, expected_count);
+    assert(result == expected_count);
+}
+
+#[should_fail]
+fn test_wrong_count_fails() {
+    let a = [1, 2, 3, 4];
+    let b = [3, 4, 5, 6];
+    let expected_count = 3;
+    let _ = main(a, b, expected_count); // This should fail
 }
 ```
 
@@ -140,7 +206,7 @@ yarn generate-proof
 nargo execute
 
 # Generate proof with CLI
-bb prove -b ./target/noir_linear_transform_proof.json -w ./target/noir_linear_transform_proof.gz -o ./target --oracle_hash keccak
+bb prove -b ./target/noir_psi_proof.json -w target/noir_psi_proof.gz -o ./target --oracle_hash keccak
 ```
 
 ---
@@ -160,7 +226,7 @@ forge test --optimize --optimizer-runs 5000 --gas-report -vvv
 ## ℹ️ Notes
 
 - All arithmetic is modulo the Noir circuit field prime.
-- Only y (the result) is public; W and x remain secret.
+- Only the expected intersection count and the public set are revealed; the private set remains secret.
 - For production, validate all inputs for expected ranges/types.
 - Make sure toolchain versions match for proof/verification compatibility.
 
@@ -170,21 +236,21 @@ forge test --optimize --optimizer-runs 5000 --gas-report -vvv
 
 Here are a few scenarios where this circuit is valuable:
 
-1. **Privacy-Preserving Machine Learning**  
-   Prove that you performed a correct linear transformation or neural network layer without revealing the model weights or input data.
+1. **Private Set Intersection for Web3**  
+   Prove, in zero-knowledge, the number of shared items between your private set and a public set without revealing your private set.
 
-2. **Secure Computation Outsourcing**  
-   Convince a client you processed their sensitive data correctly (e.g., confidential statistics, encrypted images) using secret matrices, without leaking proprietary algorithms or data.
+2. **Privacy-Preserving Contact Discovery**  
+   Find mutual contacts between parties where each party keeps their list private.
 
-3. **Confidential Data Validation**  
-   Prove compliance with a data-processing rule (e.g., regulatory check, secure voting) involving matrix multiplication, while keeping the underlying data private.
+3. **Anonymous Membership Verification**  
+   Prove you are part of a group (intersection with group list) without revealing your exact identity.
 
 ---
 
 ## 🏆 Why Use This Circuit?
 
-Prove you applied a secret linear transformation to secret data, resulting in a public output, **without revealing the transformation or the data itself**.  
-Useful for privacy-preserving computations, secure ML, and ZKP research.
+Prove you share a specified number of items with a public set, **without revealing your private set**.  
+Useful for privacy-preserving computations, secure Web3 authentication, and ZKP research.
 
 ---
 ### 🧭 Ecosystem Attribution
