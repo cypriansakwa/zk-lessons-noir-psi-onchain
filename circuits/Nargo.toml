@@ -1,5 +1,5 @@
 [package]
-name = "noir_private_matrix_proof"       
+name = "noir_linear_transform_proof"       
 type = "bin"
 authors = ["cypriansakwa"]
 compiler_version = ">=1.0.0"

@@ -1,6 +1,6 @@
 import { UltraHonkBackend } from "@aztec/bb.js";
 import fs from "fs";
-import circuit from "../circuits/target/noir_private_matrix_proof.json";
+import circuit from "../circuits/target/noir_linear_transform_proof.json";
 // @ts-ignore
 import { Noir } from "@noir-lang/noir_js";
 
@@ -10,9 +10,9 @@ import { Noir } from "@noir-lang/noir_js";
     const honk = new UltraHonkBackend(circuit.bytecode, { threads: 1 });
 
     const inputs = {
-      a_flat: [1, 2, 3, 4, 5, 6],
-      b_flat: [7, 8, 9, 10, 11, 12],
-      c_flat: [58, 64, 139, 154],
+      w_flat: [-1, 2, 3, -4, 0, 6],
+      x: [5, -8],
+      y: [-21, 47, -48]
     };
 
     const { witness } = await noir.execute(inputs);

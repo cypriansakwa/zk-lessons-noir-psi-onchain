@@ -1,6 +1,6 @@
-# Noir Matrix Multiplication ZKP Circuit
+# Noir Linear Transformation Proof Circuit
 
-This project demonstrates a robust **Zero-Knowledge Proof (ZKP)** circuit using **Noir** for proving knowledge of two secret matrices, **A** (2x3) and **B** (3x2), such that their matrix product **C = A × B** is publicly revealed. The circuit allows you to prove that you know the values for A and B such that $C = AB$, **without revealing A or B to the verifier**.
+This project demonstrates a robust **Zero-Knowledge Proof (ZKP)** circuit using **Noir** for privacy-preserving verification of a linear transformation. The circuit allows you to prove that you applied a secret linear transformation (matrix multiplication) to secret input data, resulting in a public output, **without revealing the transformation matrix or the input data to the verifier**.
 
 ---
 
@@ -9,58 +9,54 @@ This project demonstrates a robust **Zero-Knowledge Proof (ZKP)** circuit using 
 ### What does the circuit do?
 
 - **Public Input/Output:**
-  - `c_flat` (`[Field; 4]`): The result matrix C, flattened as `[C00, C01, C10, C11]` (2x2).
+  - `y` (`[Field; 3]`): The output vector, result of the transformation (3-dimensional).
 - **Private Inputs:**
-  - `a_flat` (`[Field; 6]`): Matrix A, flattened as `[A00, A01, A02, A10, A11, A12]` (2x3).
-  - `b_flat` (`[Field; 6]`): Matrix B, flattened as `[B00, B01, B10, B11, B20, B21]` (3x2).
+  - `w_flat` (`[Field; 6]`): Transformation matrix W, flattened as `[W00, W01, W10, W11, W20, W21]` (3x2).
+  - `x` (`[Field; 2]`): Input vector x (2-dimensional).
 
-The circuit **asserts** that when A and B are reshaped to their respective dimensions, their product equals C.  
-It does **not reveal** A or B to the verifier.
+The circuit **asserts** that when W and x are reshaped to their respective dimensions, their product equals y.  
+It does **not reveal** W or x to the verifier.
 
 ### Key Constraint
 
 $$
-C = A \times B
+y = W \times x
 $$
 
 ### Example Circuit Code
 
 ```rust
-fn main(
-    c_flat: [Field; 4],     // PUBLIC input/output: Matrix C (flattened 2x2)
-    a_flat: [Field; 6],     // PRIVATE input: Matrix A (flattened 2x3)
-    b_flat: [Field; 6],     // PRIVATE input: Matrix B (flattened 3x2)
-) -> pub [Field; 4] {
-    // Unflatten A into 2x3 matrix
-    let a = [
-        [a_flat[0], a_flat[1], a_flat[2]],
-        [a_flat[3], a_flat[4], a_flat[5]],
-    ];
-
-    // Unflatten B into 3x2 matrix
-    let b = [
-        [b_flat[0], b_flat[1]],
-        [b_flat[2], b_flat[3]],
-        [b_flat[4], b_flat[5]],
-    ];
-
-    // Unflatten C into 2x2 matrix (used for assertion)
-    let c = [
-        [c_flat[0], c_flat[1]],
-        [c_flat[2], c_flat[3]],
-    ];
-
-    // Matrix multiplication check: C == A * B
-    for i in 0..2 {
+/// Performs matrix-vector multiplication: y = W * x
+/// W is provided as a 3x2 matrix, flattened into a 6-element array
+/// x is a 2-element vector
+/// Returns a 3-element output vector
+fn linear_transform(w_flat: [Field; 6], x: [Field; 2]) -> [Field; 3] {
+    let mut y = [0; 3];
+    for i in 0..3 {
+        let mut sum = 0;
         for j in 0..2 {
-            let mut sum = 0;
-            for k in 0..3 {
-                sum += a[i][k] * b[k][j];
-            }
-            assert(sum == c[i][j]);
+            let idx_w = (i as u32) * 2 + (j as u32); // calculate index for flattened W
+            sum += w_flat[idx_w] * x[j];
         }
+        y[i] = sum;
     }
-    c_flat
+    y
+}
+
+/// Main entry point for the circuit
+/// y: public output (3-element vector)
+/// w_flat: private matrix W (flattened 3x2)
+/// x: private input vector (2-element)
+fn main(
+    y: [Field; 3],        // PUBLIC output
+    w_flat: [Field; 6],   // PRIVATE matrix W (3x2, flattened)
+    x: [Field; 2],        // PRIVATE input vector x
+) -> pub [Field; 3] {
+    let computed_y = linear_transform(w_flat, x);
+    for i in 0..3 {
+        assert(computed_y[i] == y[i]);
+    }
+    y
 }
 ```
 
@@ -72,23 +68,26 @@ The circuit includes tests for passing and failing cases, e.g.:
 
 ```rust
 #[test]
-fn test_matrix_mul_pass_1() {
-    let a = [1, 2, 3, 4, 5, 6];
-    let b = [7, 8, 9, 10, 11, 12];
-    let c = [58, 64, 139, 154];
+fn test_linear_transform_pass() {
+    // W = [[1,2],[3,4],[5,6]]
+    let w = [1, 2, 3, 4, 5, 6];
+    // x = [10, 20]
+    let x = [10, 20];
+    // y = [1*10+2*20, 3*10+4*20, 5*10+6*20] = [50, 110, 170]
+    let y = [50, 110, 170];
 
-    let result = main(c, a, b);
-    assert(result == c);
+    let result = main(y, w, x);
+    assert(result == y);
 }
 
 #[test(should_fail)]
-fn test_matrix_mul_fail_1() {
-    let a = [1, 2, 3, 4, 5, 6];
-    let b = [7, 8, 9, 10, 11, 12];
-    let c = [0, 0, 0, 0]; // Incorrect C
+fn test_linear_transform_fail_wrong_output() {
+    let w = [1, 2, 3, 4, 5, 6];
+    let x = [10, 20];
+    let y_wrong = [0, 0, 0]; // Incorrect output
 
-    let result = main(c, a, b);
-    assert(result == c);
+    let result = main(y_wrong, w, x);
+    assert(result == y_wrong);
 }
 ```
 
@@ -141,7 +140,7 @@ yarn generate-proof
 nargo execute
 
 # Generate proof with CLI
-bb prove -b ./target/noir_private_matrix_proof.json -w ./target/noir_private_matrix_proof.gz -o ./target --oracle_hash keccak
+bb prove -b ./target/noir_linear_transform_proof.json -w ./target/noir_linear_transform_proof.gz -o ./target --oracle_hash keccak
 ```
 
 ---
@@ -161,7 +160,7 @@ forge test --optimize --optimizer-runs 5000 --gas-report -vvv
 ## ℹ️ Notes
 
 - All arithmetic is modulo the Noir circuit field prime.
-- Only C (the result) is public; A and B remain secret.
+- Only y (the result) is public; W and x remain secret.
 - For production, validate all inputs for expected ranges/types.
 - Make sure toolchain versions match for proof/verification compatibility.
 
@@ -184,7 +183,7 @@ Here are a few scenarios where this circuit is valuable:
 
 ## 🏆 Why Use This Circuit?
 
-Prove you know matrices A and B such that C = AB, **without revealing A or B**.  
+Prove you applied a secret linear transformation to secret data, resulting in a public output, **without revealing the transformation or the data itself**.  
 Useful for privacy-preserving computations, secure ML, and ZKP research.
 
 ---
