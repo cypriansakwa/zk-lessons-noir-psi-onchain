@@ -1,46 +1,32 @@
-// Noir circuit for proving knowledge of matrices A (2x3) and B (3x2) such that C = A * B.
-// PUBLIC INPUT/OUTPUT: c_flat - The result matrix C, flattened as [Field; 4] (2x2).
-// PRIVATE INPUTS: a_flat - Matrix A, flattened as [Field; 6] (2x3).
-//                 b_flat - Matrix B, flattened as [Field; 6] (3x2).
-// The circuit asserts that C == A * B, but does NOT reveal A or B to the verifier.
-// For production, ensure input data is validated to be within expected ranges/types.
+// Noir circuit for proving C = A * B for A (2x3), B (3x2)
 
-fn main(
-    c_flat: [Field; 4],     // PUBLIC input/output: Matrix C (flattened 2x2)
-    a_flat: [Field; 6],     // PRIVATE input: Matrix A (flattened 2x3)
-    b_flat: [Field; 6],     // PRIVATE input: Matrix B (flattened 3x2)
-) -> pub [Field; 4] {
-    // Unflatten A into 2x3 matrix
-    let a = [
-        [a_flat[0], a_flat[1], a_flat[2]],
-        [a_flat[3], a_flat[4], a_flat[5]],
-    ];
-
-    // Unflatten B into 3x2 matrix
-    let b = [
-        [b_flat[0], b_flat[1]],
-        [b_flat[2], b_flat[3]],
-        [b_flat[4], b_flat[5]],
-    ];
-
-    // Unflatten C into 2x2 matrix (used for assertion)
-    let c = [
-        [c_flat[0], c_flat[1]],
-        [c_flat[2], c_flat[3]],
-    ];
-
-    // Matrix multiplication check: C == A * B
+fn matrix_mul(a_flat: [Field; 6], b_flat: [Field; 6]) -> [Field; 4] {
+    let mut c_flat = [0; 4];
     for i in 0..2 {
         for j in 0..2 {
             let mut sum = 0;
             for k in 0..3 {
-                sum += a[i][k] * b[k][j];
+                // Cast indices to u32 for compatibility
+                let idx_a = (i as u32) * 3 + (k as u32);
+                let idx_b = (k as u32) * 2 + (j as u32);
+                sum += a_flat[idx_a] * b_flat[idx_b];
             }
-            assert(sum == c[i][j]);
+            let idx_c = (i as u32) * 2 + (j as u32);
+            c_flat[idx_c] = sum;
         }
     }
+    c_flat
+}
 
-    // Return C as the public output
+fn main(
+    c_flat: [Field; 4],     // PUBLIC output/input: Matrix C (flattened 2x2)
+    a_flat: [Field; 6],     // PRIVATE input: Matrix A (flattened 2x3)
+    b_flat: [Field; 6],     // PRIVATE input: Matrix B (flattened 3x2)
+) -> pub [Field; 4] {
+    let computed_c = matrix_mul(a_flat, b_flat);
+    for i in 0..4 {
+        assert(computed_c[i] == c_flat[i]);
+    }
     c_flat
 }
 
