@@ -1,4 +1,4 @@
-mod poseidon;
+use poseidon::poseidon::bn254::hash_1;
 
 /// Deduplicates a 4-element array, pads with sentinel (0).
 /// NOTE: Inputs must NOT contain 0; 0 is reserved as padding.
@@ -22,7 +22,7 @@ fn hash_set(set: [Field; 4], n: u32) -> [Field; 4] {
     let mut hashed = [0; 4];
     for i in 0..4 {
         if i < n {
-            hashed[i] = poseidon::bn254::hash_1([set[i]]);
+            hashed[i] = hash_1([set[i]]);
         }
     }
     hashed
